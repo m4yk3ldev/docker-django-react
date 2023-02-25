@@ -1,0 +1,64 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_PASSWORD=*1q2w3e*
+      - POSTGRES_USER=fullstack
+      - POSTGRES_DB=coniungo
+    volumes:
+      - /var/lib/postgresql/data
+      - ./db:/salva
+    networks:
+      network:
+        ipv4_address: 10.5.0.4
+
+  backend:
+    build: ../backend
+    volumes:
+      - ../backend:/app/backend
+    depends_on:
+      - db
+    networks:
+      network:
+        ipv4_address: 10.5.0.5
+
+  frontend:
+    build: ../frontend
+    volumes:
+      - ../frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+      - db
+    command: sh -c "npm run build"
+    networks:
+      network:
+        ipv4_address: 10.5.0.6
+
+  proxy:
+    image: nginx:alpine-slim
+    volumes:
+      - ../proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../frontend/dist:/var/www/app:ro
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+      - db
+    networks:
+      network:
+        ipv4_address: 10.5.0.7
+
+networks:
+  network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
